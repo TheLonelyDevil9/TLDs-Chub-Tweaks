@@ -1,0 +1,10 @@
+# TLD's Chub Tweaks
+
+Private userscript repository for `TLD's Chub Tweaks.user.js`.
+
+Adds creator-page sorting/view-all behavior while preserving Chub's native styling, plus card-page expansion helpers, editor jump shortcuts, action buttons, gallery upload improvements, and notification bell styling.
+
+## Install
+
+Use a userscript manager such as Tampermonkey or Violentmonkey, then install the `.user.js` file from this repository.
+
