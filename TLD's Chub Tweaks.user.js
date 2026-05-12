@@ -1,7 +1,9 @@
 // ==UserScript==
 // @name         TLD's Chub Tweaks
 // @namespace    https://chub.ai
-// @version      5.5.6
+// @version      5.5.7
+// @updateURL    https://github.com/TheLonelyDevil9/TLDs-Chub-Tweaks/raw/refs/heads/main/TLD%27s%20Chub%20Tweaks.user.js
+// @downloadURL  https://github.com/TheLonelyDevil9/TLDs-Chub-Tweaks/raw/refs/heads/main/TLD%27s%20Chub%20Tweaks.user.js
 // @description  Adds creator-page sorting/view-all while keeping Chub's native look, plus card-page auto-expand, editor jump shortcuts, top-right action buttons, reliable gallery multi-upload, and a brighter unread notification bell
 // @author       The_Lonely_Devil
 // @match        https://chub.ai/*
