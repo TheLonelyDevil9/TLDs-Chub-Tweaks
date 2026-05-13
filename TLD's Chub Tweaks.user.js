@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         TLD's Chub Tweaks
 // @namespace    https://chub.ai
-// @version      5.5.7
+// @version      5.5.8
 // @updateURL    https://github.com/TheLonelyDevil9/TLDs-Chub-Tweaks/raw/refs/heads/main/TLD%27s%20Chub%20Tweaks.user.js
 // @downloadURL  https://github.com/TheLonelyDevil9/TLDs-Chub-Tweaks/raw/refs/heads/main/TLD%27s%20Chub%20Tweaks.user.js
-// @description  Adds creator-page sorting/view-all while keeping Chub's native look, plus card-page auto-expand, editor jump shortcuts, top-right action buttons, reliable gallery multi-upload, and a brighter unread notification bell
+// @description  Adds creator-page sorting for the current 20-card page while keeping Chub's native look, plus card-page auto-expand, editor jump shortcuts, top-right action buttons, reliable gallery multi-upload, and a brighter unread notification bell
 // @author       The_Lonely_Devil
 // @match        https://chub.ai/*
 // @grant        none
@@ -45,6 +45,7 @@
   const NOTIFICATION_BELL_ATTR = 'data-chub-notification-bell';
   const NOTIFICATION_UNREAD_ATTR = 'data-chub-notification-unread';
   const NOTIFICATION_SYNC_INTERVAL_MS = 1800;
+  const CREATOR_PAGE_SIZE = 20;
   const CHARACTER_SECTIONS_TO_EXPAND = ['Definitions', 'Discussion', 'Gallery'];
   const GALLERY_INPUT_SELECTOR = 'input[type="file"][accept="image/*"][name="file"]';
   const CHARACTER_ACTION_BAR_SELECTOR = 'div.flex.flex-wrap.justify-end';
@@ -1136,12 +1137,18 @@
   //  API + Sorting
   // =============================================
 
-  async function fetchAllCards(username, sort) {
+  function getCreatorPage() {
+    const activePage = document.querySelector('.ant-pagination-item-active');
+    const page = Number(activePage?.getAttribute('title') || activePage?.textContent || '1');
+    return Number.isFinite(page) && page > 0 ? page : 1;
+  }
+
+  async function fetchCreatorCardsPage(username, sort, page) {
     const token = (() => { try { return localStorage.getItem('URQL_TOKEN') || ''; } catch { return ''; } })();
     const serverSort = CLIENT_SORT_KEYS.has(sort) ? 'created_at' : sort;
     const params = new URLSearchParams({
-      first: '500', namespace: 'characters', nsfw: 'true', nsfl: 'true',
-      chub: 'true', include_forks: 'true', count: 'true', sort: serverSort, username, page: '1',
+      first: String(CREATOR_PAGE_SIZE), namespace: 'characters', nsfw: 'true', nsfl: 'true',
+      chub: 'true', include_forks: 'true', count: 'true', sort: serverSort, username, page: String(page || 1),
     });
     const res = await fetch(`https://gateway.chub.ai/search?${params}`, {
       method: 'POST',
@@ -1199,6 +1206,7 @@
   let sortRunId = 0;
   let nativeCardTemplate = null;
   let nativeGridClassName = '';
+  let renderedCreatorPage = null;
   let galleryReviewRouteKey = null;
   let galleryReviewScrolledRouteKey = null;
 
@@ -1363,7 +1371,6 @@
 
   function ensureSortStyle() {
     const styleText = `
-      .ant-pagination { display: none !important; }
       [data-chub-sort-toolbar],
       [data-chub-sort-toolbar] * {
         color-scheme: dark !important;
@@ -1400,6 +1407,7 @@
     document.getElementById(STYLE_ID)?.remove();
     restoreNativeSort();
     restoreNativeGrid();
+    renderedCreatorPage = null;
 
     const grid = findGrid();
     if (grid) {
@@ -1444,15 +1452,17 @@
     const username = getCreatorUsername();
     if (!username) return;
     const runId = ++sortRunId;
+    const page = getCreatorPage();
     const toolbar = document.querySelector(TOOLBAR_SELECTOR);
     const select = toolbar?.querySelector('select');
     const dirBtn = toolbar?.querySelector('button');
     if (select) select.disabled = true;
     if (dirBtn) dirBtn.disabled = true;
     try {
-      const nodes = await fetchAllCards(username, currentSort);
+      const nodes = await fetchCreatorCardsPage(username, currentSort, page);
       if (runId !== sortRunId || username !== getCreatorUsername() || !isCreatorPage()) return;
       await renderCards(nodes);
+      renderedCreatorPage = page;
     } catch (e) {
       console.warn('[Chub Sort] Failed:', e);
     } finally {
@@ -1540,7 +1550,7 @@
 
     hideNativeSort(grid);
 
-    // Apply saved sort on initial load
+    // Apply saved sort on initial load for the current 20-card page.
     doSort();
   }
 
@@ -1592,7 +1602,7 @@
 
     hideNativeSort(grid);
 
-    if (!document.querySelector(CUSTOM_GRID_SELECTOR)) {
+    if (!document.querySelector(CUSTOM_GRID_SELECTOR) || renderedCreatorPage !== getCreatorPage()) {
       doSort();
     }
   }
