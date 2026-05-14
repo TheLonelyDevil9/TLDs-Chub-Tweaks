@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         TLD's Chub Tweaks
 // @namespace    https://chub.ai
-// @version      5.5.8
+// @version      5.5.9
 // @updateURL    https://github.com/TheLonelyDevil9/TLDs-Chub-Tweaks/raw/refs/heads/main/TLD%27s%20Chub%20Tweaks.user.js
 // @downloadURL  https://github.com/TheLonelyDevil9/TLDs-Chub-Tweaks/raw/refs/heads/main/TLD%27s%20Chub%20Tweaks.user.js
-// @description  Adds creator-page sorting for the current 20-card page while keeping Chub's native look, plus card-page auto-expand, editor jump shortcuts, top-right action buttons, reliable gallery multi-upload, and a brighter unread notification bell
+// @description  Adds creator-page sorting for the current 15-card page while keeping Chub's native look, plus card-page auto-expand, editor jump shortcuts, top-right action buttons, reliable gallery multi-upload, and a brighter unread notification bell
 // @author       The_Lonely_Devil
 // @match        https://chub.ai/*
 // @grant        none
@@ -45,7 +45,7 @@
   const NOTIFICATION_BELL_ATTR = 'data-chub-notification-bell';
   const NOTIFICATION_UNREAD_ATTR = 'data-chub-notification-unread';
   const NOTIFICATION_SYNC_INTERVAL_MS = 1800;
-  const CREATOR_PAGE_SIZE = 20;
+  const CREATOR_PAGE_SIZE = 15;
   const CHARACTER_SECTIONS_TO_EXPAND = ['Definitions', 'Discussion', 'Gallery'];
   const GALLERY_INPUT_SELECTOR = 'input[type="file"][accept="image/*"][name="file"]';
   const CHARACTER_ACTION_BAR_SELECTOR = 'div.flex.flex-wrap.justify-end';
@@ -1485,6 +1485,7 @@
     toolbar.setAttribute('data-chub-sort-toolbar', 'true');
     toolbar.style.cssText = [
       'display:flex', 'align-items:center', 'gap:8px', 'flex-wrap:wrap',
+      'margin-top:10px',
       'margin-bottom:12px',
     ].join(';');
 
@@ -1550,7 +1551,7 @@
 
     hideNativeSort(grid);
 
-    // Apply saved sort on initial load for the current 20-card page.
+    // Apply saved sort on initial load for the current 15-card page.
     doSort();
   }
 
