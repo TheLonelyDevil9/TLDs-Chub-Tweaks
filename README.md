@@ -8,5 +8,5 @@ The creator-page sorter requests `first=500` with `page=1`, hides Chub's native 
 
 ## Install
 
-Use a userscript manager such as Tampermonkey or Violentmonkey, then install the `.user.js` file from this repository.
+https://raw.githubusercontent.com/TheLonelyDevil9/TLDs-Chub-Tweaks/main/TLD%27s%20Chub%20Tweaks.user.js
 
