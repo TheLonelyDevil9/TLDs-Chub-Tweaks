@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TLD's Chub Tweaks
 // @namespace    https://chub.ai
-// @version      5.5.14
+// @version      5.5.15
 // @updateURL    https://github.com/TheLonelyDevil9/TLDs-Chub-Tweaks/raw/refs/heads/main/TLD%27s%20Chub%20Tweaks.user.js
 // @downloadURL  https://github.com/TheLonelyDevil9/TLDs-Chub-Tweaks/raw/refs/heads/main/TLD%27s%20Chub%20Tweaks.user.js
 // @description  Adds creator-page all-cards sorting/view-all while keeping Chub's native look, plus card-page auto-expand, editor jump shortcuts, top-right action buttons, reliable gallery multi-upload, and a brighter unread notification bell
@@ -38,6 +38,7 @@
   const CUSTOM_GRID_SELECTOR = '[data-chub-sort-grid]';
   const TOOLBAR_SELECTOR = '[data-chub-sort-toolbar]';
   const STYLE_ID = 'chub-sort-style';
+  const PORTAL_TOP_LAYER_STYLE_ID = 'chub-portal-top-layer-style';
   const NOTIFICATION_STYLE_ID = 'chub-notification-bell-style';
   const PROFILE_WIDTH_STYLE_ID = 'chub-profile-width-style';
   const PROFILE_WIDTH_ATTR = 'data-chub-profile-wide';
@@ -322,6 +323,37 @@
   function setAttributeIfChanged(element, attr, value) {
     if (!element || element.getAttribute(attr) === value) return;
     element.setAttribute(attr, value);
+  }
+
+  function ensurePortalTopLayerStyle() {
+    const styleText = `
+      .ant-dropdown:not(.ant-dropdown-hidden),
+      .ant-select-dropdown:not(.ant-select-dropdown-hidden),
+      .ant-popover,
+      .ant-menu-submenu-popup,
+      .ant-tooltip {
+        z-index: 2147483647 !important;
+        pointer-events: auto !important;
+      }
+
+      .ant-dropdown:not(.ant-dropdown-hidden) *,
+      .ant-select-dropdown:not(.ant-select-dropdown-hidden) *,
+      .ant-popover *,
+      .ant-menu-submenu-popup *,
+      .ant-tooltip * {
+        pointer-events: auto !important;
+      }
+    `;
+
+    let style = document.getElementById(PORTAL_TOP_LAYER_STYLE_ID);
+    if (!style) {
+      style = document.createElement('style');
+      style.id = PORTAL_TOP_LAYER_STYLE_ID;
+      document.head.appendChild(style);
+    }
+    if (style.textContent !== styleText) {
+      style.textContent = styleText;
+    }
   }
 
   function ensureNotificationBellStyle() {
@@ -1560,6 +1592,7 @@
   }
 
   function syncPage() {
+    ensurePortalTopLayerStyle();
     syncNotificationBell();
     ensureProfileWidthStyle();
     setProfileWidthAttr();
