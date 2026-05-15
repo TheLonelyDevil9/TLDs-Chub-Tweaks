@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         TLD's Chub Tweaks
 // @namespace    https://chub.ai
-// @version      5.5.10
+// @version      5.5.14
 // @updateURL    https://github.com/TheLonelyDevil9/TLDs-Chub-Tweaks/raw/refs/heads/main/TLD%27s%20Chub%20Tweaks.user.js
 // @downloadURL  https://github.com/TheLonelyDevil9/TLDs-Chub-Tweaks/raw/refs/heads/main/TLD%27s%20Chub%20Tweaks.user.js
-// @description  Adds creator-page sorting with 15-card count-backed pagination while keeping Chub's native look, plus card-page auto-expand, editor jump shortcuts, top-right action buttons, reliable gallery multi-upload, and a brighter unread notification bell
+// @description  Adds creator-page all-cards sorting/view-all while keeping Chub's native look, plus card-page auto-expand, editor jump shortcuts, top-right action buttons, reliable gallery multi-upload, and a brighter unread notification bell
 // @author       The_Lonely_Devil
 // @match        https://chub.ai/*
 // @grant        none
@@ -37,9 +37,6 @@
   const CLIENT_SORT_KEYS = new Set(CLIENT_SORTS.map(s => s.value));
   const CUSTOM_GRID_SELECTOR = '[data-chub-sort-grid]';
   const TOOLBAR_SELECTOR = '[data-chub-sort-toolbar]';
-  const CUSTOM_PAGINATION_SELECTOR = '[data-chub-sort-pagination="true"]';
-  const CUSTOM_PAGINATION_STATE_ATTR = 'data-chub-sort-pagination-state';
-  const NATIVE_PAGINATION_HIDDEN_ATTR = 'data-chub-sort-pagination-native-hidden';
   const STYLE_ID = 'chub-sort-style';
   const NOTIFICATION_STYLE_ID = 'chub-notification-bell-style';
   const PROFILE_WIDTH_STYLE_ID = 'chub-profile-width-style';
@@ -48,7 +45,6 @@
   const NOTIFICATION_BELL_ATTR = 'data-chub-notification-bell';
   const NOTIFICATION_UNREAD_ATTR = 'data-chub-notification-unread';
   const NOTIFICATION_SYNC_INTERVAL_MS = 1800;
-  const CREATOR_PAGE_SIZE = 15;
   const CHARACTER_SECTIONS_TO_EXPAND = ['Definitions', 'Discussion', 'Gallery'];
   const GALLERY_INPUT_SELECTOR = 'input[type="file"][accept="image/*"][name="file"]';
   const CHARACTER_ACTION_BAR_SELECTOR = 'div.flex.flex-wrap.justify-end';
@@ -1140,56 +1136,12 @@
   //  API + Sorting
   // =============================================
 
-  function getCreatorPage() {
-    const searchParams = new URLSearchParams(location.search);
-    const urlPage = getPageFromUrl();
-    if (searchParams.has('page')) {
-      return urlPage;
-    }
-
-    if (document.querySelector(CUSTOM_GRID_SELECTOR) || document.querySelector(CUSTOM_PAGINATION_SELECTOR)) {
-      return renderedCreatorPage || urlPage;
-    }
-
-    const activePage = document.querySelector('.ant-pagination-item-active');
-    const titlePage = Number(activePage?.getAttribute('title'));
-    const textPage = Number(activePage?.textContent);
-    const page = Number.isFinite(titlePage) && titlePage > 0 ? titlePage : textPage;
-    if (Number.isFinite(page) && page > 0) return page;
-    return urlPage;
-  }
-
-  function getCreatorCount(data) {
-    const count = Number(data?.data?.count ?? data?.count ?? data?.total ?? data?.total_count);
-    return Number.isFinite(count) && count >= 0 ? count : null;
-  }
-
-  function getCreatorCountFromDom() {
-    const candidates = [...document.querySelectorAll('span, div, p')]
-      .map(element => normalizeText(element.textContent))
-      .filter(Boolean);
-
-    for (const text of candidates) {
-      const match = text.match(/^(\d[\d,]*)\s+results$/i);
-      if (!match) continue;
-
-      const count = Number(match[1].replace(/,/g, ''));
-      if (Number.isFinite(count) && count >= 0) return count;
-    }
-
-    return null;
-  }
-
-  function getCreatorPageCount(totalCount) {
-    return Math.max(1, Math.ceil((Number(totalCount) || 0) / CREATOR_PAGE_SIZE));
-  }
-
-  async function fetchCreatorCardsPage(username, sort, page) {
+  async function fetchAllCards(username, sort) {
     const token = (() => { try { return localStorage.getItem('URQL_TOKEN') || ''; } catch { return ''; } })();
     const serverSort = CLIENT_SORT_KEYS.has(sort) ? 'created_at' : sort;
     const params = new URLSearchParams({
-      first: String(CREATOR_PAGE_SIZE), namespace: 'characters', nsfw: 'true', nsfl: 'true',
-      chub: 'true', include_forks: 'true', count: 'true', sort: serverSort, username, page: String(page || 1),
+      first: '500', namespace: 'characters', nsfw: 'true', nsfl: 'true',
+      chub: 'true', include_forks: 'true', count: 'true', sort: serverSort, username, page: '1',
     });
     const res = await fetch(`https://gateway.chub.ai/search?${params}`, {
       method: 'POST',
@@ -1201,17 +1153,24 @@
     let nodes = data?.data?.nodes || [];
 
     if (CLIENT_SORT_KEYS.has(sort)) {
-      if (sort === 'lastActivityAt') {
-        nodes.sort((a, b) => new Date(b.lastActivityAt) - new Date(a.lastActivityAt));
-      } else {
-        nodes.sort((a, b) => (b[sort] || 0) - (a[sort] || 0));
-      }
+      nodes = sortCreatorNodes(nodes, sort, 'desc');
     }
-    return {
-      count: getCreatorCount(data),
-      nodes,
-      page: Number(data?.data?.page) || page || 1,
-    };
+
+    return nodes;
+  }
+
+  function getClientSortValue(node, sort) {
+    if (sort === 'lastActivityAt') {
+      const time = new Date(node.lastActivityAt || node.last_activity_at || node.updatedAt || 0).getTime();
+      return Number.isFinite(time) ? time : 0;
+    }
+
+    return Number(node[sort] || 0);
+  }
+
+  function sortCreatorNodes(nodes, sort, direction) {
+    const sorted = [...nodes].sort((a, b) => getClientSortValue(b, sort) - getClientSortValue(a, sort));
+    return direction === 'asc' ? sorted.reverse() : sorted;
   }
 
   // =============================================
@@ -1251,168 +1210,11 @@
   let sortRunId = 0;
   let nativeCardTemplate = null;
   let nativeGridClassName = '';
-  let renderedCreatorPage = null;
-  let creatorTotalCount = null;
   let galleryReviewRouteKey = null;
   let galleryReviewScrolledRouteKey = null;
 
   function findGrid() {
     return document.querySelector('.character-list-container:not([data-chub-sort-grid])');
-  }
-
-  function findNativePagination() {
-    const grid = findGrid();
-    const scope = grid?.parentElement || document;
-    return scope.querySelector(`.ant-pagination:not(${CUSTOM_PAGINATION_SELECTOR})`);
-  }
-
-  function getPageFromUrl() {
-    const page = Number(new URLSearchParams(location.search).get('page'));
-    return Number.isFinite(page) && page > 0 ? page : 1;
-  }
-
-  function setCreatorPage(page) {
-    const totalPages = creatorTotalCount == null ? page : getCreatorPageCount(creatorTotalCount);
-    const nextPage = Math.min(Math.max(1, Number(page) || 1), totalPages);
-
-    if (nextPage === getCreatorPage() && renderedCreatorPage === nextPage) return;
-
-    const url = new URL(location.href);
-    if (nextPage <= 1) {
-      url.searchParams.delete('page');
-    } else {
-      url.searchParams.set('page', String(nextPage));
-    }
-    history.pushState(null, '', `${url.pathname}${url.search}${url.hash}`);
-    renderedCreatorPage = null;
-    doSort();
-  }
-
-  function createPaginationButton(label, title, disabled, onClick) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = label;
-    button.title = title;
-    button.disabled = disabled;
-    button.style.cssText = [
-      'min-width:34px',
-      'min-height:32px',
-      'padding:0 10px',
-      `border:1px solid ${TOOLBAR_BORDER}`,
-      'border-radius:6px',
-      `background:${TOOLBAR_SURFACE}`,
-      `color:${TOOLBAR_TEXT}`,
-      'font:inherit',
-      'font-weight:800',
-      'line-height:1',
-      disabled ? 'cursor:not-allowed' : 'cursor:pointer',
-      disabled ? 'opacity:0.45' : 'opacity:1',
-      'color-scheme:dark',
-    ].join(';');
-    if (!disabled) {
-      button.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        onClick();
-      });
-    }
-    return button;
-  }
-
-  function patchCreatorPagination() {
-    const nativePagination = findNativePagination();
-    const customGrid = document.querySelector(CUSTOM_GRID_SELECTOR);
-    const nativeGrid = findGrid();
-    const paginationParent = nativePagination?.parentElement || customGrid?.parentElement || nativeGrid?.parentElement;
-    const paginationAnchor = nativePagination || customGrid || nativeGrid;
-    const totalCount = creatorTotalCount ?? getCreatorCountFromDom();
-    if (!paginationParent || !paginationAnchor || totalCount == null) return;
-
-    creatorTotalCount = totalCount;
-
-    const totalPages = getCreatorPageCount(totalCount);
-    const currentPage = Math.min(Math.max(1, getCreatorPage()), totalPages);
-
-    if (nativePagination && nativePagination.getAttribute(NATIVE_PAGINATION_HIDDEN_ATTR) !== 'true') {
-      nativePagination.setAttribute(NATIVE_PAGINATION_HIDDEN_ATTR, 'true');
-      nativePagination.dataset.chubSortPrevDisplay = nativePagination.style.getPropertyValue('display') || '';
-      nativePagination.dataset.chubSortPrevDisplayPriority = nativePagination.style.getPropertyPriority('display') || '';
-    }
-    if (nativePagination) {
-      nativePagination.style.setProperty('display', 'none', 'important');
-    }
-
-    let pagination = paginationParent.querySelector(CUSTOM_PAGINATION_SELECTOR);
-    if (!pagination) {
-      pagination = document.createElement('div');
-      pagination.setAttribute('data-chub-sort-pagination', 'true');
-      paginationAnchor.insertAdjacentElement('afterend', pagination);
-    }
-
-    const state = `${currentPage}:${totalPages}:${totalCount}`;
-    pagination.style.cssText = [
-      'display:flex',
-      'align-items:center',
-      'justify-content:center',
-      'gap:8px',
-      'flex-wrap:wrap',
-      'margin-top:12px',
-      'color-scheme:dark',
-    ].join(';');
-
-    pagination.setAttribute('data-chub-sort-pagination', 'true');
-    if (pagination.getAttribute(CUSTOM_PAGINATION_STATE_ATTR) === state) return;
-
-    pagination.setAttribute(CUSTOM_PAGINATION_STATE_ATTR, state);
-    pagination.replaceChildren();
-
-    const previous = createPaginationButton('\u2039', 'Previous page', currentPage <= 1, () => setCreatorPage(currentPage - 1));
-    const next = createPaginationButton('\u203a', 'Next page', currentPage >= totalPages, () => setCreatorPage(currentPage + 1));
-    pagination.append(previous);
-
-    for (let page = 1; page <= totalPages; page++) {
-      const button = createPaginationButton(String(page), `Page ${page}`, false, () => setCreatorPage(page));
-      if (page === currentPage) {
-        button.classList.add('ant-pagination-item-active');
-        button.setAttribute('aria-current', 'page');
-        button.style.background = 'rgba(255, 138, 0, 0.16)';
-      }
-      pagination.append(button);
-    }
-
-    pagination.append(next);
-
-    const countLabel = document.createElement('span');
-    countLabel.textContent = `${totalCount} results`;
-    countLabel.style.cssText = [
-      `color:${TOOLBAR_TEXT}`,
-      'font:inherit',
-      'font-weight:700',
-      'opacity:0.82',
-      'margin-left:4px',
-    ].join(';');
-    pagination.append(countLabel);
-  }
-
-  function restoreNativePagination() {
-    for (const pagination of document.querySelectorAll(CUSTOM_PAGINATION_SELECTOR)) {
-      pagination.remove();
-    }
-
-    for (const nativePagination of document.querySelectorAll(`[${NATIVE_PAGINATION_HIDDEN_ATTR}="true"]`)) {
-      const previousDisplay = nativePagination.dataset.chubSortPrevDisplay || '';
-      const previousPriority = nativePagination.dataset.chubSortPrevDisplayPriority || '';
-
-      if (previousDisplay) {
-        nativePagination.style.setProperty('display', previousDisplay, previousPriority);
-      } else {
-        nativePagination.style.removeProperty('display');
-      }
-
-      nativePagination.removeAttribute(NATIVE_PAGINATION_HIDDEN_ATTR);
-      delete nativePagination.dataset.chubSortPrevDisplay;
-      delete nativePagination.dataset.chubSortPrevDisplayPriority;
-    }
   }
 
   function hideNativeGrid(grid) {
@@ -1572,6 +1374,7 @@
 
   function ensureSortStyle() {
     const styleText = `
+      .ant-pagination { display: none !important; }
       [data-chub-sort-toolbar],
       [data-chub-sort-toolbar] * {
         color-scheme: dark !important;
@@ -1606,11 +1409,8 @@
     document.querySelector(CUSTOM_GRID_SELECTOR)?.remove();
     document.querySelector(TOOLBAR_SELECTOR)?.remove();
     document.getElementById(STYLE_ID)?.remove();
-    restoreNativePagination();
     restoreNativeSort();
     restoreNativeGrid();
-    renderedCreatorPage = null;
-    creatorTotalCount = null;
 
     const grid = findGrid();
     if (grid) {
@@ -1655,19 +1455,15 @@
     const username = getCreatorUsername();
     if (!username) return;
     const runId = ++sortRunId;
-    const page = getCreatorPage();
     const toolbar = document.querySelector(TOOLBAR_SELECTOR);
     const select = toolbar?.querySelector('select');
     const dirBtn = toolbar?.querySelector('button');
     if (select) select.disabled = true;
     if (dirBtn) dirBtn.disabled = true;
     try {
-      const result = await fetchCreatorCardsPage(username, currentSort, page);
+      const nodes = await fetchAllCards(username, currentSort);
       if (runId !== sortRunId || username !== getCreatorUsername() || !isCreatorPage()) return;
-      creatorTotalCount = result.count ?? creatorTotalCount;
-      await renderCards(result.nodes);
-      renderedCreatorPage = result.page || page;
-      patchCreatorPagination();
+      await renderCards(nodes);
     } catch (e) {
       console.warn('[Chub Sort] Failed:', e);
     } finally {
@@ -1746,9 +1542,12 @@
       currentDirection = currentDirection === 'desc' ? 'asc' : 'desc';
       updateDirBtn();
       savePrefs(currentSort, currentDirection);
-      // Just reverse current custom grid children instead of re-fetching
       const customGrid = document.querySelector(CUSTOM_GRID_SELECTOR);
-      if (customGrid) customGrid.append(...[...customGrid.children].reverse());
+      if (customGrid) {
+        customGrid.append(...[...customGrid.children].reverse());
+      } else {
+        doSort();
+      }
     });
 
     toolbar.append(label, select, dirBtn);
@@ -1756,7 +1555,7 @@
 
     hideNativeSort(grid);
 
-    // Apply saved sort on initial load for the current creator page.
+    // Apply saved sort on initial load.
     doSort();
   }
 
@@ -1808,9 +1607,7 @@
 
     hideNativeSort(grid);
 
-    patchCreatorPagination();
-
-    if (!document.querySelector(CUSTOM_GRID_SELECTOR) || renderedCreatorPage !== getCreatorPage()) {
+    if (!document.querySelector(CUSTOM_GRID_SELECTOR)) {
       doSort();
     }
   }

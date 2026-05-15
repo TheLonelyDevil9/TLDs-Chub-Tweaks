@@ -2,9 +2,9 @@
 
 Private userscript repository for `TLD's Chub Tweaks.user.js`.
 
-Adds creator-page sorting with count-backed 15-card pagination while preserving Chub's native styling, plus card-page expansion helpers, editor jump shortcuts, action buttons, gallery upload improvements, and notification bell styling.
+Adds creator-page sorting/view-all that renders every fetched card in one custom grid, plus card-page expansion helpers, editor jump shortcuts, action buttons, gallery upload improvements, and notification bell styling.
 
-The creator-page sorter requests `first=15`, reads Chub gateway `count` metadata, and renders its own pagination controls while hiding, not mutating, Chub's native React-owned pagination. For a 76-card creator profile, this yields six pages. Leaving the sorted view restores the native controls.
+The creator-page sorter requests `first=500` with `page=1`, hides Chub's native pagination while the custom view is active, and renders the full returned set at once. Server sort keys are requested directly from Chub; client-only sort keys sort the returned set before rendering.
 
 ## Install
 
