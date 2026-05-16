@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TLD's Chub Tweaks
 // @namespace    https://chub.ai
-// @version      5.5.15
+// @version      5.5.16
 // @updateURL    https://github.com/TheLonelyDevil9/TLDs-Chub-Tweaks/raw/refs/heads/main/TLD%27s%20Chub%20Tweaks.user.js
 // @downloadURL  https://github.com/TheLonelyDevil9/TLDs-Chub-Tweaks/raw/refs/heads/main/TLD%27s%20Chub%20Tweaks.user.js
 // @description  Adds creator-page all-cards sorting/view-all while keeping Chub's native look, plus card-page auto-expand, editor jump shortcuts, top-right action buttons, reliable gallery multi-upload, and a brighter unread notification bell
@@ -487,34 +487,42 @@
     }
 
     style.textContent = `
+      html[${PROFILE_WIDTH_ATTR}="true"] {
+        --chub-profile-shell-width: min(1560px, calc(100vw - 72px));
+        --chub-profile-field-width: min(1440px, 100%);
+        --chub-profile-label-width: clamp(168px, 14vw, 220px);
+        --chub-profile-control-width: minmax(0, min(1120px, calc(100vw - 360px)));
+      }
+
       html[${PROFILE_WIDTH_ATTR}="true"] .ant-layout-content,
       html[${PROFILE_WIDTH_ATTR}="true"] main,
       html[${PROFILE_WIDTH_ATTR}="true"] form {
         margin-left: auto !important;
         margin-right: auto !important;
-        max-width: min(1280px, calc(100vw - 96px)) !important;
-        width: min(1280px, calc(100vw - 96px)) !important;
+        max-width: var(--chub-profile-shell-width) !important;
+        width: var(--chub-profile-shell-width) !important;
       }
 
       html[${PROFILE_WIDTH_ATTR}="true"] form > :not(.ant-collapse),
       html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item:not(.ant-collapse *) {
         margin-left: auto !important;
         margin-right: auto !important;
-        max-width: min(1180px, 100%) !important;
-        width: min(1180px, 100%) !important;
+        max-width: var(--chub-profile-field-width) !important;
+        width: var(--chub-profile-field-width) !important;
       }
 
       html[${PROFILE_WIDTH_ATTR}="true"] form button[${PROFILE_WIDTH_TARGET_ATTR}="true"] {
         margin-left: auto !important;
         margin-right: auto !important;
-        max-width: min(820px, 100%) !important;
-        width: min(820px, 100%) !important;
+        max-width: min(1120px, 100%) !important;
+        width: min(1120px, 100%) !important;
       }
 
       html[${PROFILE_WIDTH_ATTR}="true"] form .ant-row:not(.ant-collapse *),
       html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-row:not(.ant-collapse *) {
         display: grid !important;
-        grid-template-columns: 180px minmax(0, 820px) 180px !important;
+        grid-template-columns: minmax(168px, var(--chub-profile-label-width)) var(--chub-profile-control-width) minmax(24px, 1fr) !important;
+        column-gap: 18px !important;
         justify-content: center !important;
         max-width: 100% !important;
         width: 100% !important;
@@ -532,9 +540,9 @@
 
       html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-label:not(.ant-collapse *) {
         flex: none !important;
-        max-width: 180px !important;
+        max-width: var(--chub-profile-label-width) !important;
         text-align: right !important;
-        width: 180px !important;
+        width: var(--chub-profile-label-width) !important;
       }
 
       html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-control:not(.ant-collapse *) {
@@ -546,16 +554,35 @@
       html[${PROFILE_WIDTH_ATTR}="true"] form .ant-collapse {
         margin-left: auto !important;
         margin-right: auto !important;
-        max-width: min(768px, 100%) !important;
-        width: min(768px, 100%) !important;
+        max-width: min(1040px, 100%) !important;
+        width: min(1040px, 100%) !important;
+      }
+
+      @media (max-width: 1040px) {
+        html[${PROFILE_WIDTH_ATTR}="true"] {
+          --chub-profile-shell-width: calc(100vw - 40px);
+          --chub-profile-label-width: clamp(150px, 22vw, 200px);
+          --chub-profile-control-width: minmax(0, 1fr);
+        }
+
+        html[${PROFILE_WIDTH_ATTR}="true"] form .ant-row:not(.ant-collapse *),
+        html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-row:not(.ant-collapse *) {
+          grid-template-columns: minmax(150px, var(--chub-profile-label-width)) var(--chub-profile-control-width) !important;
+          column-gap: 14px !important;
+        }
       }
 
       @media (max-width: 760px) {
+        html[${PROFILE_WIDTH_ATTR}="true"] {
+          --chub-profile-shell-width: calc(100vw - 24px);
+          --chub-profile-label-width: 100%;
+        }
+
         html[${PROFILE_WIDTH_ATTR}="true"] .ant-layout-content,
         html[${PROFILE_WIDTH_ATTR}="true"] main,
         html[${PROFILE_WIDTH_ATTR}="true"] form {
-          max-width: calc(100vw - 24px) !important;
-          width: calc(100vw - 24px) !important;
+          max-width: var(--chub-profile-shell-width) !important;
+          width: var(--chub-profile-shell-width) !important;
         }
 
         html[${PROFILE_WIDTH_ATTR}="true"] form .ant-row:not(.ant-collapse *),
@@ -1076,6 +1103,7 @@
 
   function styleEditorJumpDock(dock) {
     const isMobile = window.innerWidth <= MOBILE_ACTION_BREAKPOINT;
+    const desktopDockWidth = 'clamp(220px, 18vw, 280px)';
     dock.style.cssText = [
       'position:fixed',
       isMobile ? 'left:8px' : 'left:auto',
@@ -1090,8 +1118,10 @@
       'align-items:stretch',
       'gap:7px',
       'pointer-events:auto',
-      'max-width:calc(100vw - 16px)',
-      isMobile ? 'width:auto' : 'width:180px',
+      isMobile ? 'max-width:calc(100vw - 16px)' : 'max-width:min(280px, calc(100vw - 36px))',
+      isMobile ? 'width:auto' : `width:${desktopDockWidth}`,
+      isMobile ? '--chub-editor-jump-button-flex:1 1 112px' : '--chub-editor-jump-button-flex:0 0 auto',
+      isMobile ? '--chub-editor-jump-button-min-width:min(108px, 100%)' : '--chub-editor-jump-button-min-width:100%',
     ].join(';');
   }
 
@@ -1103,9 +1133,13 @@
     button.dataset.chubEditorJumpAction = config.action;
     button.setAttribute(EDITOR_JUMP_BUTTON_ATTR, 'true');
     button.style.cssText = [
-      'min-height:34px',
-      'width:100%',
-      'padding:0 14px',
+      'box-sizing:border-box',
+      'min-height:32px',
+      'flex:var(--chub-editor-jump-button-flex, 0 0 auto)',
+      'min-width:var(--chub-editor-jump-button-min-width, 100%)',
+      'max-width:100%',
+      'width:auto',
+      'padding:0 12px',
       'border:1px solid rgba(255, 138, 0, 0.78)',
       'border-radius:8px',
       'background:#050302',
