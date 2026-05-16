@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TLD's Chub Tweaks
 // @namespace    https://chub.ai
-// @version      5.5.19
+// @version      5.5.20
 // @updateURL    https://github.com/TheLonelyDevil9/TLDs-Chub-Tweaks/raw/refs/heads/main/TLD%27s%20Chub%20Tweaks.user.js
 // @downloadURL  https://github.com/TheLonelyDevil9/TLDs-Chub-Tweaks/raw/refs/heads/main/TLD%27s%20Chub%20Tweaks.user.js
 // @description  Adds creator-page all-cards sorting/view-all while keeping Chub's native look, plus card-page auto-expand, editor jump shortcuts, top-right action buttons, reliable gallery multi-upload, and a brighter unread notification bell
@@ -42,9 +42,11 @@
   const NOTIFICATION_STYLE_ID = 'chub-notification-bell-style';
   const PROFILE_WIDTH_STYLE_ID = 'chub-profile-width-style';
   const PROFILE_WIDTH_ATTR = 'data-chub-profile-wide';
+  const PROFILE_WIDTH_CONTAINER_ATTR = 'data-chub-profile-wide-container';
   const PROFILE_WIDTH_TARGET_ATTR = 'data-chub-profile-wide-target';
   const EDITOR_WIDTH_STYLE_ID = 'chub-editor-width-style';
   const EDITOR_WIDTH_ATTR = 'data-chub-editor-wide';
+  const EDITOR_WIDTH_CONTAINER_ATTR = 'data-chub-editor-wide-container';
   const NOTIFICATION_BELL_ATTR = 'data-chub-notification-bell';
   const NOTIFICATION_UNREAD_ATTR = 'data-chub-notification-unread';
   const NOTIFICATION_SYNC_INTERVAL_MS = 1800;
@@ -460,6 +462,57 @@
     }
   }
 
+  function updateBooleanAttribute(element, attr, shouldSet) {
+    if (!element) return;
+
+    if (shouldSet) {
+      setAttributeIfChanged(element, attr, 'true');
+    } else {
+      element.removeAttribute(attr);
+    }
+  }
+
+  function markRouteWidthContainers({ isActive, attr }) {
+    const form = isActive ? document.querySelector('form') : null;
+    const containers = new Set();
+
+    for (let node = form, depth = 0; node && node !== document.body && depth < 8; node = node.parentElement, depth += 1) {
+      if (node instanceof HTMLElement) {
+        containers.add(node);
+      }
+      if (node.matches?.('main, .ant-layout-content')) break;
+    }
+
+    const main = form?.closest('main');
+    const layoutContent = form?.closest('.ant-layout-content');
+    if (main instanceof HTMLElement) containers.add(main);
+    if (layoutContent instanceof HTMLElement) containers.add(layoutContent);
+
+    for (const container of document.querySelectorAll(`[${attr}="true"]`)) {
+      if (!containers.has(container)) {
+        container.removeAttribute(attr);
+      }
+    }
+
+    for (const container of containers) {
+      updateBooleanAttribute(container, attr, true);
+    }
+  }
+
+  function markProfileWideContainers() {
+    markRouteWidthContainers({
+      isActive: isProfilePage(),
+      attr: PROFILE_WIDTH_CONTAINER_ATTR,
+    });
+  }
+
+  function markEditorWideContainers() {
+    markRouteWidthContainers({
+      isActive: isEditorPage(),
+      attr: EDITOR_WIDTH_CONTAINER_ATTR,
+    });
+  }
+
   function markProfileWideTargets() {
     const existingTargets = document.querySelectorAll(`[${PROFILE_WIDTH_TARGET_ATTR}="true"]`);
     if (!isProfilePage()) {
@@ -498,158 +551,203 @@
 
     style.textContent = `
       html[${PROFILE_WIDTH_ATTR}="true"] {
-        --chub-profile-shell-width: min(100%, 1360px, calc(100vw - 96px));
-        --chub-profile-field-width: min(100%, 1180px);
-        --chub-profile-label-width: clamp(150px, 13vw, 220px);
-        --chub-profile-control-max-width: 920px;
+        --chub-profile-shell-width: min(1240px, calc(100vw - 96px));
+        --chub-profile-field-width: min(1040px, calc(100vw - 96px));
+        --chub-profile-label-width: clamp(160px, 12vw, 210px);
+        --chub-profile-control-max-width: 800px;
+        --chub-profile-collapse-width: min(1040px, calc(100vw - 96px));
         overflow-x: hidden !important;
-      }
-
-      html[${PROFILE_WIDTH_ATTR}="true"] .ant-layout-content,
-      html[${PROFILE_WIDTH_ATTR}="true"] .ant-layout-content *,
-      html[${PROFILE_WIDTH_ATTR}="true"] main,
-      html[${PROFILE_WIDTH_ATTR}="true"] main *,
-      html[${PROFILE_WIDTH_ATTR}="true"] form,
-      html[${PROFILE_WIDTH_ATTR}="true"] form * {
-        box-sizing: border-box !important;
       }
 
       html[${PROFILE_WIDTH_ATTR}="true"] body {
         overflow-x: hidden !important;
       }
 
+      html[${PROFILE_WIDTH_ATTR}="true"] [${PROFILE_WIDTH_CONTAINER_ATTR}="true"],
+      html[${PROFILE_WIDTH_ATTR}="true"] form,
       html[${PROFILE_WIDTH_ATTR}="true"] .ant-layout-content,
-      html[${PROFILE_WIDTH_ATTR}="true"] main,
-      html[${PROFILE_WIDTH_ATTR}="true"] form {
+      html[${PROFILE_WIDTH_ATTR}="true"] main {
+        align-self: center !important;
+        box-sizing: border-box !important;
+        flex: 0 1 var(--chub-profile-shell-width) !important;
         margin-left: auto !important;
         margin-right: auto !important;
         max-width: var(--chub-profile-shell-width) !important;
         min-width: 0 !important;
-        overflow-x: clip !important;
-        width: min(100%, var(--chub-profile-shell-width)) !important;
+        overflow-x: hidden !important;
+        width: var(--chub-profile-shell-width) !important;
       }
 
-      html[${PROFILE_WIDTH_ATTR}="true"] form > :not(.ant-collapse),
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item:not(.ant-collapse *) {
+      html[${PROFILE_WIDTH_ATTR}="true"] [${PROFILE_WIDTH_CONTAINER_ATTR}="true"] *,
+      html[${PROFILE_WIDTH_ATTR}="true"] form * {
+        box-sizing: border-box !important;
+      }
+
+      html[${PROFILE_WIDTH_ATTR}="true"] form > *,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item {
         margin-left: auto !important;
         margin-right: auto !important;
         max-width: var(--chub-profile-field-width) !important;
         min-width: 0 !important;
         overflow-wrap: anywhere !important;
-        width: min(100%, var(--chub-profile-field-width)) !important;
+        width: var(--chub-profile-field-width) !important;
       }
 
-      html[${PROFILE_WIDTH_ATTR}="true"] form button[${PROFILE_WIDTH_TARGET_ATTR}="true"] {
-        margin-left: auto !important;
-        margin-right: auto !important;
-        max-width: min(920px, 100%) !important;
-        min-width: 0 !important;
-        width: min(920px, 100%) !important;
-      }
-
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-row:not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-row:not(.ant-collapse *) {
-        display: grid !important;
-        grid-template-columns: minmax(150px, var(--chub-profile-label-width)) minmax(0, 1fr) !important;
-        column-gap: 18px !important;
-        justify-content: center !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-        overflow-x: clip !important;
-        width: 100% !important;
-      }
-
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-control:not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-control-input:not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-control-input-content:not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-input-group-wrapper:not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-input-group:not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-input-affix-wrapper:not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-input-number:not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-picker:not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-mentions:not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-select:not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-select-selector:not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-select-selection-overflow:not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-select-selection-search:not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-select-selection-search-input:not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-tree-select:not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-cascader-picker:not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-radio-group:not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-checkbox-group:not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-input:not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form select:not(.ant-collapse *),
-      html[${PROFILE_WIDTH_ATTR}="true"] form textarea:not(.ant-collapse *) {
-        max-width: 100% !important;
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-row,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-row,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-control,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-control-input,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-control-input-content,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-input-group-wrapper,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-input-group,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-input-affix-wrapper,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-input-number,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-picker,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-mentions,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-select,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-select-selector,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-select-selection-overflow,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-select-selection-search,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-select-selection-search-input,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-tree-select,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-cascader-picker,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-radio-group,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-checkbox-group,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-space,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-space-item,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-input,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-input-number-input,
+      html[${PROFILE_WIDTH_ATTR}="true"] form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+      html[${PROFILE_WIDTH_ATTR}="true"] form select,
+      html[${PROFILE_WIDTH_ATTR}="true"] form textarea {
+        max-width: none !important;
         min-width: 0 !important;
         overflow-wrap: anywhere !important;
         width: 100% !important;
       }
 
-      html[${PROFILE_WIDTH_ATTR}="true"] form textarea:not(.ant-collapse *) {
-        resize: vertical !important;
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-row,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item > .ant-row {
+        column-gap: 18px !important;
+        display: grid !important;
+        grid-template-columns: minmax(0, var(--chub-profile-label-width)) minmax(0, 1fr) !important;
+        justify-content: center !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        overflow-x: hidden !important;
+        row-gap: 6px !important;
+        width: 100% !important;
       }
 
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-label:not(.ant-collapse *) {
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-row > .ant-col,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-row > [class*="ant-col-"] {
+        flex: initial !important;
+        margin-left: 0 !important;
+        max-width: none !important;
+        min-width: 0 !important;
+        width: auto !important;
+      }
+
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-row > .ant-form-item-label,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item > .ant-form-item-label {
         flex: none !important;
+        grid-column: 1 !important;
         max-width: var(--chub-profile-label-width) !important;
+        min-width: 0 !important;
         text-align: right !important;
         width: var(--chub-profile-label-width) !important;
       }
 
-      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-control:not(.ant-collapse *) {
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-label > label {
+        height: auto !important;
+        white-space: normal !important;
+      }
+
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-row > .ant-form-item-control,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item > .ant-form-item-control {
         flex: none !important;
         grid-column: 2 !important;
+        justify-self: stretch !important;
         max-width: min(var(--chub-profile-control-max-width), 100%) !important;
         min-width: 0 !important;
-        width: 100% !important;
+        width: min(var(--chub-profile-control-max-width), 100%) !important;
+      }
+
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-row > .ant-form-item-control:first-child,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item > .ant-form-item-control:first-child {
+        grid-column: 1 / -1 !important;
+        justify-self: center !important;
+      }
+
+      html[${PROFILE_WIDTH_ATTR}="true"] form textarea {
+        resize: vertical !important;
+      }
+
+      html[${PROFILE_WIDTH_ATTR}="true"] form button[${PROFILE_WIDTH_TARGET_ATTR}="true"] {
+        margin-left: auto !important;
+        margin-right: auto !important;
+        max-width: min(var(--chub-profile-control-max-width), 100%) !important;
+        min-width: 0 !important;
+        width: min(var(--chub-profile-control-max-width), 100%) !important;
       }
 
       html[${PROFILE_WIDTH_ATTR}="true"] form > .ant-collapse,
       html[${PROFILE_WIDTH_ATTR}="true"] form .ant-collapse {
         margin-left: auto !important;
         margin-right: auto !important;
-        max-width: min(980px, 100%) !important;
+        max-width: var(--chub-profile-collapse-width) !important;
         min-width: 0 !important;
-        width: min(980px, 100%) !important;
+        width: var(--chub-profile-collapse-width) !important;
+      }
+
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-collapse .ant-form-item,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-collapse .ant-row,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-collapse .ant-form-item-row,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-collapse .ant-collapse-content,
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-collapse .ant-collapse-content-box {
+        max-width: 100% !important;
+        min-width: 0 !important;
+        width: 100% !important;
       }
 
       @media (max-width: 1180px) {
         html[${PROFILE_WIDTH_ATTR}="true"] {
-          --chub-profile-shell-width: min(100%, calc(100vw - 48px));
+          --chub-profile-shell-width: calc(100vw - 48px);
+          --chub-profile-field-width: calc(100vw - 48px);
           --chub-profile-label-width: clamp(150px, 22vw, 200px);
           --chub-profile-control-max-width: 100%;
+          --chub-profile-collapse-width: calc(100vw - 48px);
         }
 
-        html[${PROFILE_WIDTH_ATTR}="true"] form .ant-row:not(.ant-collapse *),
-        html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-row:not(.ant-collapse *) {
-          grid-template-columns: minmax(150px, var(--chub-profile-label-width)) minmax(0, 1fr) !important;
+        html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-row,
+        html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item > .ant-row {
           column-gap: 14px !important;
         }
       }
 
       @media (max-width: 760px) {
         html[${PROFILE_WIDTH_ATTR}="true"] {
-          --chub-profile-shell-width: min(100%, calc(100vw - 24px));
+          --chub-profile-shell-width: calc(100vw - 24px);
+          --chub-profile-field-width: calc(100vw - 24px);
           --chub-profile-label-width: 100%;
+          --chub-profile-collapse-width: calc(100vw - 24px);
         }
 
-        html[${PROFILE_WIDTH_ATTR}="true"] .ant-layout-content,
-        html[${PROFILE_WIDTH_ATTR}="true"] main,
-        html[${PROFILE_WIDTH_ATTR}="true"] form {
-          max-width: var(--chub-profile-shell-width) !important;
-          width: min(100%, var(--chub-profile-shell-width)) !important;
-        }
-
-        html[${PROFILE_WIDTH_ATTR}="true"] form .ant-row:not(.ant-collapse *),
-        html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-row:not(.ant-collapse *) {
+        html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-row,
+        html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item > .ant-row {
           display: block !important;
         }
 
-        html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-label:not(.ant-collapse *) {
+        html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-row > .ant-form-item-label,
+        html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item > .ant-form-item-label {
           max-width: 100% !important;
           text-align: left !important;
+          width: 100% !important;
+        }
+
+        html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-row > .ant-form-item-control,
+        html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item > .ant-form-item-control {
+          max-width: 100% !important;
           width: 100% !important;
         }
       }
@@ -666,89 +764,54 @@
 
     style.textContent = `
       html[${EDITOR_WIDTH_ATTR}="true"] {
-        --chub-editor-shell-width: min(100%, 1320px, calc(100vw - 96px));
-        --chub-editor-field-width: min(100%, 1160px);
-        --chub-editor-label-width: clamp(150px, 13vw, 220px);
-        --chub-editor-control-max-width: 900px;
+        --chub-editor-shell-width: min(1240px, calc(100vw - 96px));
+        --chub-editor-field-width: min(1060px, calc(100vw - 96px));
+        --chub-editor-label-width: clamp(160px, 12vw, 220px);
+        --chub-editor-control-max-width: 820px;
+        --chub-editor-collapse-width: min(1060px, calc(100vw - 96px));
         overflow-x: hidden !important;
-      }
-
-      html[${EDITOR_WIDTH_ATTR}="true"] .ant-layout-content,
-      html[${EDITOR_WIDTH_ATTR}="true"] .ant-layout-content *,
-      html[${EDITOR_WIDTH_ATTR}="true"] main,
-      html[${EDITOR_WIDTH_ATTR}="true"] main *,
-      html[${EDITOR_WIDTH_ATTR}="true"] form,
-      html[${EDITOR_WIDTH_ATTR}="true"] form * {
-        box-sizing: border-box !important;
       }
 
       html[${EDITOR_WIDTH_ATTR}="true"] body {
         overflow-x: hidden !important;
       }
 
+      html[${EDITOR_WIDTH_ATTR}="true"] [${EDITOR_WIDTH_CONTAINER_ATTR}="true"],
+      html[${EDITOR_WIDTH_ATTR}="true"] form,
       html[${EDITOR_WIDTH_ATTR}="true"] .ant-layout-content,
-      html[${EDITOR_WIDTH_ATTR}="true"] main,
-      html[${EDITOR_WIDTH_ATTR}="true"] form {
+      html[${EDITOR_WIDTH_ATTR}="true"] main {
+        align-self: center !important;
+        box-sizing: border-box !important;
+        flex: 0 1 var(--chub-editor-shell-width) !important;
         margin-left: auto !important;
         margin-right: auto !important;
         max-width: var(--chub-editor-shell-width) !important;
         min-width: 0 !important;
-        overflow-x: clip !important;
-        width: min(100%, var(--chub-editor-shell-width)) !important;
+        overflow-x: hidden !important;
+        width: var(--chub-editor-shell-width) !important;
       }
 
-      html[${EDITOR_WIDTH_ATTR}="true"] form > * {
+      html[${EDITOR_WIDTH_ATTR}="true"] [${EDITOR_WIDTH_CONTAINER_ATTR}="true"] *,
+      html[${EDITOR_WIDTH_ATTR}="true"] form * {
+        box-sizing: border-box !important;
+      }
+
+      html[${EDITOR_WIDTH_ATTR}="true"] form > *,
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item,
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-collapse,
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-collapse-item,
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-collapse-content,
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-collapse-content-box {
         margin-left: auto !important;
         margin-right: auto !important;
         max-width: var(--chub-editor-field-width) !important;
         min-width: 0 !important;
         overflow-wrap: anywhere !important;
-        width: min(100%, var(--chub-editor-field-width)) !important;
+        width: var(--chub-editor-field-width) !important;
       }
 
-      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item,
       html[${EDITOR_WIDTH_ATTR}="true"] form .ant-row,
       html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-row,
-      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-collapse,
-      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-collapse-item,
-      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-collapse-content,
-      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-collapse-content-box {
-        max-width: 100% !important;
-        min-width: 0 !important;
-        overflow-wrap: anywhere !important;
-        width: 100% !important;
-      }
-
-      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-row:has(> .ant-form-item-label) {
-        display: grid !important;
-        grid-template-columns: minmax(150px, var(--chub-editor-label-width)) minmax(0, 1fr) !important;
-        column-gap: 18px !important;
-        justify-content: center !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-        overflow-x: clip !important;
-        width: 100% !important;
-      }
-
-      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-label {
-        flex: none !important;
-        max-width: var(--chub-editor-label-width) !important;
-        text-align: right !important;
-        width: var(--chub-editor-label-width) !important;
-      }
-
-      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-control {
-        flex: 1 1 auto !important;
-        min-width: 0 !important;
-      }
-
-      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-row:has(> .ant-form-item-label) > .ant-form-item-control {
-        flex: none !important;
-        grid-column: 2 !important;
-        max-width: min(var(--chub-editor-control-max-width), 100%) !important;
-        width: 100% !important;
-      }
-
       html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-control,
       html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-control-input,
       html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-control-input-content,
@@ -767,57 +830,133 @@
       html[${EDITOR_WIDTH_ATTR}="true"] form .ant-cascader-picker,
       html[${EDITOR_WIDTH_ATTR}="true"] form .ant-radio-group,
       html[${EDITOR_WIDTH_ATTR}="true"] form .ant-checkbox-group,
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-space,
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-space-item,
       html[${EDITOR_WIDTH_ATTR}="true"] form .ant-input,
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-input-number-input,
       html[${EDITOR_WIDTH_ATTR}="true"] form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
       html[${EDITOR_WIDTH_ATTR}="true"] form select,
       html[${EDITOR_WIDTH_ATTR}="true"] form textarea {
-        max-width: 100% !important;
+        max-width: none !important;
         min-width: 0 !important;
         overflow-wrap: anywhere !important;
         width: 100% !important;
+      }
+
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-row,
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item > .ant-row {
+        column-gap: 18px !important;
+        display: grid !important;
+        grid-template-columns: minmax(0, var(--chub-editor-label-width)) minmax(0, 1fr) !important;
+        justify-content: center !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        overflow-x: hidden !important;
+        row-gap: 6px !important;
+        width: 100% !important;
+      }
+
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-row > .ant-col,
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-row > [class*="ant-col-"] {
+        flex: initial !important;
+        margin-left: 0 !important;
+        max-width: none !important;
+        min-width: 0 !important;
+        width: auto !important;
+      }
+
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-row > .ant-form-item-label,
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item > .ant-form-item-label {
+        flex: none !important;
+        grid-column: 1 !important;
+        max-width: var(--chub-editor-label-width) !important;
+        min-width: 0 !important;
+        text-align: right !important;
+        width: var(--chub-editor-label-width) !important;
+      }
+
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-label > label {
+        height: auto !important;
+        white-space: normal !important;
+      }
+
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-row > .ant-form-item-control,
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item > .ant-form-item-control {
+        flex: none !important;
+        grid-column: 2 !important;
+        justify-self: stretch !important;
+        max-width: min(var(--chub-editor-control-max-width), 100%) !important;
+        min-width: 0 !important;
+        width: min(var(--chub-editor-control-max-width), 100%) !important;
+      }
+
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-row > .ant-form-item-control:first-child,
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item > .ant-form-item-control:first-child {
+        grid-column: 1 / -1 !important;
+        justify-self: center !important;
       }
 
       html[${EDITOR_WIDTH_ATTR}="true"] form textarea {
         resize: vertical !important;
       }
 
+      html[${EDITOR_WIDTH_ATTR}="true"] form > .ant-collapse,
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-collapse {
+        margin-left: auto !important;
+        margin-right: auto !important;
+        max-width: var(--chub-editor-collapse-width) !important;
+        min-width: 0 !important;
+        width: var(--chub-editor-collapse-width) !important;
+      }
+
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-collapse .ant-form-item,
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-collapse .ant-row,
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-collapse .ant-form-item-row,
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-collapse .ant-collapse-content,
+      html[${EDITOR_WIDTH_ATTR}="true"] form .ant-collapse .ant-collapse-content-box {
+        max-width: 100% !important;
+        min-width: 0 !important;
+        width: 100% !important;
+      }
+
       @media (max-width: 1180px) {
         html[${EDITOR_WIDTH_ATTR}="true"] {
-          --chub-editor-shell-width: min(100%, calc(100vw - 48px));
+          --chub-editor-shell-width: calc(100vw - 48px);
+          --chub-editor-field-width: calc(100vw - 48px);
           --chub-editor-label-width: clamp(150px, 22vw, 200px);
           --chub-editor-control-max-width: 100%;
+          --chub-editor-collapse-width: calc(100vw - 48px);
         }
 
-        html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-row:has(> .ant-form-item-label) {
-          grid-template-columns: minmax(150px, var(--chub-editor-label-width)) minmax(0, 1fr) !important;
+        html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-row,
+        html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item > .ant-row {
           column-gap: 14px !important;
-        }
-
-        html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-row:has(> .ant-form-item-label) > .ant-form-item-control {
-          max-width: 100% !important;
         }
       }
 
       @media (max-width: 760px) {
         html[${EDITOR_WIDTH_ATTR}="true"] {
-          --chub-editor-shell-width: min(100%, calc(100vw - 24px));
+          --chub-editor-shell-width: calc(100vw - 24px);
+          --chub-editor-field-width: calc(100vw - 24px);
           --chub-editor-label-width: 100%;
+          --chub-editor-collapse-width: calc(100vw - 24px);
         }
 
-        html[${EDITOR_WIDTH_ATTR}="true"] .ant-layout-content,
-        html[${EDITOR_WIDTH_ATTR}="true"] main,
-        html[${EDITOR_WIDTH_ATTR}="true"] form {
-          max-width: var(--chub-editor-shell-width) !important;
-          width: min(100%, var(--chub-editor-shell-width)) !important;
-        }
-
-        html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-row:has(> .ant-form-item-label) {
+        html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-row,
+        html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item > .ant-row {
           display: block !important;
         }
 
-        html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-label {
+        html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-row > .ant-form-item-label,
+        html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item > .ant-form-item-label {
           max-width: 100% !important;
           text-align: left !important;
+          width: 100% !important;
+        }
+
+        html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item-row > .ant-form-item-control,
+        html[${EDITOR_WIDTH_ATTR}="true"] form .ant-form-item > .ant-form-item-control {
+          max-width: 100% !important;
           width: 100% !important;
         }
       }
@@ -1857,6 +1996,8 @@
     ensureEditorWidthStyle();
     setProfileWidthAttr();
     setEditorWidthAttr();
+    markProfileWideContainers();
+    markEditorWideContainers();
     markProfileWideTargets();
 
     const routeChanged = getRouteKey() !== lastRouteKey;
