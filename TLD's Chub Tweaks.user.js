@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TLD's Chub Tweaks
 // @namespace    https://chub.ai
-// @version      5.5.16
+// @version      5.5.17
 // @updateURL    https://github.com/TheLonelyDevil9/TLDs-Chub-Tweaks/raw/refs/heads/main/TLD%27s%20Chub%20Tweaks.user.js
 // @downloadURL  https://github.com/TheLonelyDevil9/TLDs-Chub-Tweaks/raw/refs/heads/main/TLD%27s%20Chub%20Tweaks.user.js
 // @description  Adds creator-page all-cards sorting/view-all while keeping Chub's native look, plus card-page auto-expand, editor jump shortcuts, top-right action buttons, reliable gallery multi-upload, and a brighter unread notification bell
@@ -1112,7 +1112,7 @@
       isMobile ? 'bottom:14px' : 'bottom:auto',
       'z-index:1300',
       'display:flex',
-      isMobile ? 'flex-direction:row' : 'flex-direction:column',
+      'flex-direction:row',
       'flex-wrap:wrap',
       isMobile ? 'justify-content:flex-end' : 'justify-content:flex-start',
       'align-items:stretch',
@@ -1120,8 +1120,8 @@
       'pointer-events:auto',
       isMobile ? 'max-width:calc(100vw - 16px)' : 'max-width:min(280px, calc(100vw - 36px))',
       isMobile ? 'width:auto' : `width:${desktopDockWidth}`,
-      isMobile ? '--chub-editor-jump-button-flex:1 1 112px' : '--chub-editor-jump-button-flex:0 0 auto',
-      isMobile ? '--chub-editor-jump-button-min-width:min(108px, 100%)' : '--chub-editor-jump-button-min-width:100%',
+      isMobile ? '--chub-editor-jump-button-flex:1 1 112px' : '--chub-editor-jump-button-flex:1 1 104px',
+      isMobile ? '--chub-editor-jump-button-min-width:min(108px, 100%)' : '--chub-editor-jump-button-min-width:min(102px, 100%)',
     ].join(';');
   }
 
