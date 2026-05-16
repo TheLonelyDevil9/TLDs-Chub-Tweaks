@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TLD's Chub Tweaks
 // @namespace    https://chub.ai
-// @version      5.5.17
+// @version      5.5.18
 // @updateURL    https://github.com/TheLonelyDevil9/TLDs-Chub-Tweaks/raw/refs/heads/main/TLD%27s%20Chub%20Tweaks.user.js
 // @downloadURL  https://github.com/TheLonelyDevil9/TLDs-Chub-Tweaks/raw/refs/heads/main/TLD%27s%20Chub%20Tweaks.user.js
 // @description  Adds creator-page all-cards sorting/view-all while keeping Chub's native look, plus card-page auto-expand, editor jump shortcuts, top-right action buttons, reliable gallery multi-upload, and a brighter unread notification bell
@@ -531,8 +531,24 @@
       html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-control:not(.ant-collapse *),
       html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-control-input:not(.ant-collapse *),
       html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-control-input-content:not(.ant-collapse *),
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-input-group-wrapper:not(.ant-collapse *),
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-input-group:not(.ant-collapse *),
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-input-affix-wrapper:not(.ant-collapse *),
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-input-number:not(.ant-collapse *),
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-picker:not(.ant-collapse *),
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-mentions:not(.ant-collapse *),
       html[${PROFILE_WIDTH_ATTR}="true"] form .ant-select:not(.ant-collapse *),
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-select-selector:not(.ant-collapse *),
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-select-selection-overflow:not(.ant-collapse *),
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-select-selection-search:not(.ant-collapse *),
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-select-selection-search-input:not(.ant-collapse *),
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-tree-select:not(.ant-collapse *),
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-cascader-picker:not(.ant-collapse *),
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-radio-group:not(.ant-collapse *),
+      html[${PROFILE_WIDTH_ATTR}="true"] form .ant-checkbox-group:not(.ant-collapse *),
       html[${PROFILE_WIDTH_ATTR}="true"] form .ant-input:not(.ant-collapse *),
+      html[${PROFILE_WIDTH_ATTR}="true"] form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not(.ant-collapse *),
+      html[${PROFILE_WIDTH_ATTR}="true"] form select:not(.ant-collapse *),
       html[${PROFILE_WIDTH_ATTR}="true"] form textarea:not(.ant-collapse *) {
         max-width: 100% !important;
         width: 100% !important;
@@ -547,6 +563,7 @@
 
       html[${PROFILE_WIDTH_ATTR}="true"] form .ant-form-item-control:not(.ant-collapse *) {
         flex: none !important;
+        grid-column: 2 !important;
         min-width: 0 !important;
       }
 
